@@ -9,6 +9,116 @@ from openpyxl.styles import Font, PatternFill
 EXCEL_EXTENSIONS = {".xlsx", ".xls", ".xlsm", ".xlsb"}
 
 
+def apply_app_styles() -> None:
+    st.markdown(
+        """
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&display=swap');
+
+        .stApp {
+            background:
+                radial-gradient(circle at 0% 0%, #dbeafe 0, rgba(219, 234, 254, 0) 40%),
+                radial-gradient(circle at 100% 100%, #d1fae5 0, rgba(209, 250, 229, 0) 38%),
+                linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+            font-family: 'Barlow', sans-serif;
+        }
+        .block-container {
+            max-width: 1100px;
+            padding-top: 1.25rem;
+            padding-bottom: 2.25rem;
+        }
+        .hero-card {
+            background: linear-gradient(135deg, #0f4c81 0%, #1d4ed8 100%);
+            border-radius: 18px;
+            padding: 1.1rem 1.2rem;
+            color: #ffffff;
+            margin-bottom: 1rem;
+            box-shadow: 0 14px 30px rgba(15, 76, 129, 0.25);
+        }
+        .hero-title {
+            font-size: 1.45rem;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+        }
+        .hero-subtitle {
+            margin-top: 0.3rem;
+            font-size: 0.97rem;
+            color: #e2e8f0;
+        }
+        .section-title {
+            margin: 0.35rem 0 0.65rem 0;
+            color: #0f172a;
+            font-weight: 700;
+            font-size: 1.03rem;
+        }
+        .status-wrap {
+            display: flex;
+            gap: 0.45rem;
+            flex-wrap: wrap;
+            margin-top: 0.2rem;
+            margin-bottom: 0.7rem;
+        }
+        .status-pill {
+            border-radius: 999px;
+            padding: 0.25rem 0.68rem;
+            font-size: 0.82rem;
+            font-weight: 600;
+            border: 1px solid transparent;
+        }
+        .status-ok {
+            background: #dcfce7;
+            border-color: #86efac;
+            color: #166534;
+        }
+        .status-warn {
+            background: #fff7ed;
+            border-color: #fed7aa;
+            color: #9a3412;
+        }
+        [data-testid="stTextInputRootElement"] > div,
+        [data-testid="stFileUploader"] section,
+        [data-testid="stDataFrame"] {
+            background: rgba(255, 255, 255, 0.86);
+            border: 1px solid #dbe2ea;
+            border-radius: 14px;
+        }
+        [data-testid="stTextInputRootElement"] > div,
+        [data-testid="stFileUploader"] section {
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+        }
+        [data-testid="stFileUploader"] small {
+            color: #475569;
+        }
+        [data-testid="stButton"] button,
+        [data-testid="stDownloadButton"] button {
+            border-radius: 12px;
+            border: 0;
+            background: linear-gradient(135deg, #0f4c81 0%, #1d4ed8 100%);
+            color: #ffffff;
+            font-weight: 600;
+            min-height: 2.75rem;
+            box-shadow: 0 10px 22px rgba(29, 78, 216, 0.25);
+        }
+        [data-testid="stButton"] button:hover,
+        [data-testid="stDownloadButton"] button:hover {
+            filter: brightness(1.05);
+        }
+        [data-testid="stDataFrame"] {
+            border-radius: 14px;
+            overflow: hidden;
+        }
+        [data-testid="stAlert"] {
+            border-radius: 12px;
+        }
+        h3 {
+            color: #0f172a;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def normalize_key(value: object) -> str:
     return "" if pd.isna(value) else str(value).strip().lower()
 
@@ -486,22 +596,52 @@ def generate_output_workbook(merged_data: pd.DataFrame, style_name: str, summary
 
 def main() -> None:
     st.set_page_config(page_title="Consumption Saving", layout="wide")
-    st.title("Consumption Calculation - Streamlit")
-    st.caption("Upload source Excel files and optional PLM file, then download merged workbook.")
-
-    style_name = st.text_input("Style name", value="Style")
-    source_files = st.file_uploader(
-        "Upload source Excel files",
-        type=["xlsx", "xls", "xlsm", "xlsb"],
-        accept_multiple_files=True,
-    )
-    plm_file = st.file_uploader(
-        "Upload PLM file (optional)",
-        type=["xlsx", "xls", "xlsm", "xlsb"],
-        accept_multiple_files=False,
+    apply_app_styles()
+    st.markdown(
+        """
+        <div class="hero-card">
+            <div class="hero-title">Consumption Calculation - Triumph Vietnam</div>
+            <div class="hero-subtitle">Upload source Excel files and optional PLM file, then generate a merged workbook in one click.</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-    run_clicked = st.button("Generate Output", type="primary")
+    st.markdown('<div class="section-title">Input Configuration</div>', unsafe_allow_html=True)
+    left_col, right_col = st.columns([2, 1], gap="large")
+    with left_col:
+        style_name = st.text_input("Style name *", placeholder="Enter style name")
+        source_files = st.file_uploader(
+            "Upload source Excel files",
+            type=["xlsx", "xls", "xlsm", "xlsb"],
+            accept_multiple_files=True,
+        )
+    with right_col:
+        plm_file = st.file_uploader(
+            "Upload PLM file (optional) - Maximum 1 file",
+            type=["xlsx", "xls", "xlsm", "xlsb"],
+            accept_multiple_files=False,
+        )
+
+    source_count = len(source_files) if source_files else 0
+    style_ready = bool(style_name.strip())
+    st.markdown(
+        (
+            '<div class="status-wrap">'
+            + (f'<span class="status-pill status-ok">{source_count} source file(s) selected</span>' if source_count else '<span class="status-pill status-warn">No source files selected</span>')
+            + ('<span class="status-pill status-ok">Style name ready</span>' if style_ready else '<span class="status-pill status-warn">Style name is required</span>')
+            + (f'<span class="status-pill status-ok">PLM: {plm_file.name}</span>' if plm_file else '<span class="status-pill status-warn">PLM file not uploaded</span>')
+            + '</div>'
+        ),
+        unsafe_allow_html=True,
+    )
+
+    run_clicked = st.button(
+        "Generate Output",
+        type="primary",
+        disabled=not style_name.strip() or not source_files,
+        use_container_width=True,
+    )
 
     if run_clicked:
         if not style_name.strip():
@@ -526,16 +666,18 @@ def main() -> None:
 
         st.success("Completed successfully.")
 
+        metric_col1, metric_col2, metric_col3 = st.columns(3)
+        with metric_col1:
+            st.metric("Source Files", len(source_files))
+        with metric_col2:
+            st.metric("Master Rows", len(previews["Master"]))
+        with metric_col3:
+            st.metric("PLM Included", "Yes" if plm_file else "No")
+
         log_lines = read_logs + build_logs
         if log_lines:
             st.subheader("Logs")
             st.text("\n".join(log_lines))
-
-        st.subheader("Summary")
-        summary_df = pd.DataFrame(
-            [{"Color": color, **values} for color, values in summary.items()]
-        )
-        st.dataframe(summary_df, use_container_width=True)
 
         st.subheader("Preview - Master (Top 100 rows)")
         st.dataframe(previews["Master"].head(100), use_container_width=True)
