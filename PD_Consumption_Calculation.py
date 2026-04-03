@@ -383,8 +383,11 @@ def generate_output_workbook(merged_data: pd.DataFrame, style_name: str, summary
     logs: list[str] = []
 
     plm_df = None
+    plm_lookup_df = None
     plm_no_index = None
     plm_position_index = None
+    plm_consumption_index = None
+    plm_base_unit_index = None
 
     if plm_file is not None:
         try:
@@ -399,11 +402,20 @@ def generate_output_workbook(merged_data: pd.DataFrame, style_name: str, summary
                         plm_no_index = index
                     if header in {"position", "pos"}:
                         plm_position_index = index
+                    if header in {"consumption", "cons", "consump"}:
+                        plm_consumption_index = index
+                    if header in {"base unit", "base_unit", "uom", "unit"}:
+                        plm_base_unit_index = index
 
                 if plm_no_index is not None and plm_position_index is not None:
                     logs.append("PLM columns detected: PLM No and Position")
                 else:
                     logs.append("PLM lookup warning: Could not find PLM No/Position columns in PLM sheet.")
+
+                if plm_consumption_index is not None and plm_base_unit_index is not None:
+                    logs.append("PLM columns detected: Consumption and Base Unit")
+                else:
+                    logs.append("PLM lookup warning: Could not find Consumption/Base Unit columns in PLM sheet.")
             else:
                 logs.append("PLM lookup warning: PLM file is empty or missing column B.")
         except Exception as plm_read_error:
@@ -468,8 +480,57 @@ def generate_output_workbook(merged_data: pd.DataFrame, style_name: str, summary
     combine_df["Col"] = parsed_operation_df["Col"]
     combine_df["SAP No."] = parsed_operation_df["SAP No."]
     combine_df["Width"] = parsed_operation_df["Width"]
+    combine_df["Consumption"] = ""
+    combine_df["Base Unit"] = ""
     combine_df["Legacy"] = ""
     combine_df["Position"] = parsed_operation_df["Position"]
+
+    combine_columns = list(combine_df.columns)
+    if "Width" in combine_columns:
+        width_index = combine_columns.index("Width")
+        for column_name in ["Consumption", "Base Unit"]:
+            if column_name in combine_columns:
+                combine_columns.remove(column_name)
+        combine_columns[width_index + 1 : width_index + 1] = ["Consumption", "Base Unit"]
+        combine_df = combine_df[combine_columns]
+
+    if (
+        plm_lookup_df is not None
+        and plm_no_index is not None
+        and plm_position_index is not None
+        and plm_consumption_index is not None
+        and plm_base_unit_index is not None
+    ):
+        plm_value_lookup: dict[tuple[str, str], tuple[str, str]] = {}
+        plm_value_by_plm_no: dict[str, tuple[str, str]] = {}
+        for _, row in plm_lookup_df.iloc[1:].iterrows():
+            plm_key = normalize_key(row.iloc[plm_no_index])
+            position_key = normalize_position_key(row.iloc[plm_position_index])
+            if not plm_key:
+                continue
+
+            consumption_value = "" if pd.isna(row.iloc[plm_consumption_index]) else str(row.iloc[plm_consumption_index]).strip()
+            base_unit_value = "" if pd.isna(row.iloc[plm_base_unit_index]) else str(row.iloc[plm_base_unit_index]).strip()
+            plm_value_lookup[(plm_key, position_key)] = (consumption_value, base_unit_value)
+
+            if plm_key not in plm_value_by_plm_no:
+                plm_value_by_plm_no[plm_key] = (consumption_value, base_unit_value)
+
+        if plm_value_lookup or plm_value_by_plm_no:
+            for row_index in combine_df.index:
+                plm_key = normalize_key(combine_df.at[row_index, "PLM No"])
+                position_key = normalize_position_key(combine_df.at[row_index, "Position"])
+                if not plm_key:
+                    continue
+
+                if position_key:
+                    match_values = plm_value_lookup.get((plm_key, position_key))
+                else:
+                    match_values = plm_value_by_plm_no.get(plm_key)
+
+                if match_values is not None:
+                    combine_df.at[row_index, "Consumption"] = match_values[0]
+                    combine_df.at[row_index, "Base Unit"] = match_values[1]
 
     master_df = merged_data.copy()
     operation_is_numeric = pd.to_numeric(master_df["Operation"], errors="coerce").notna()
