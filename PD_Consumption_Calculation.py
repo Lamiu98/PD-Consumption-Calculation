@@ -123,6 +123,10 @@ def normalize_key(value: object) -> str:
     return "" if pd.isna(value) else str(value).strip().lower()
 
 
+def normalize_position_key(value: object) -> str:
+    return "" if pd.isna(value) else str(value).strip().lower()
+
+
 def first_variant_size_by_color(dataframe: pd.DataFrame) -> dict[str, str]:
     sizes: dict[str, str] = {}
     for color, group_df in dataframe.groupby("Color", sort=False):
@@ -529,7 +533,7 @@ def generate_output_workbook(merged_data: pd.DataFrame, style_name: str, summary
     combine_df = combine_df.drop(columns=["Color"], errors="ignore")
 
     combine_lookup = {
-        (normalize_key(plm_no), normalize_key(position_value))
+        (normalize_key(plm_no), normalize_position_key(position_value))
         for plm_no, position_value in zip(combine_df["PLM No"], combine_df["Position"])
         if normalize_key(plm_no)
     }
@@ -557,7 +561,7 @@ def generate_output_workbook(merged_data: pd.DataFrame, style_name: str, summary
                     plm_raw = "" if pd.isna(row.iloc[plm_no_index]) else str(row.iloc[plm_no_index]).strip()
                     plm_prefix = plm_raw[:1]
                     plm_key = normalize_key(plm_raw)
-                    position_key = normalize_key(row.iloc[plm_position_index])
+                    position_key = normalize_position_key(row.iloc[plm_position_index])
 
                     if plm_prefix in {"R", "S"}:
                         is_match = bool(plm_key and (plm_key, position_key) in combine_lookup)
