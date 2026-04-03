@@ -591,7 +591,7 @@ def generate_output_workbook(merged_data: pd.DataFrame, style_name: str, summary
             for row_index, col_value in zip(row_indices, col_values):
                 combine_df.at[row_index, color] = col_value
 
-    combine_df = combine_df.drop(columns=["Color"], errors="ignore")
+    combine_df = combine_df.drop(columns=["Col"], errors="ignore")
 
     combine_lookup = {
         (normalize_key(plm_no), normalize_position_key(position_value))
