@@ -586,7 +586,7 @@ def generate_output_workbook(merged_data: pd.DataFrame, style_name: str, summary
                 & (master_color_series == color)
                 & (master_col_series != "")
             )
-            col_values = sorted(master_col_series[master_match_mask].tolist())
+            col_values = master_col_series[master_match_mask].tolist()
 
             for row_index, col_value in zip(row_indices, col_values):
                 combine_df.at[row_index, color] = col_value
