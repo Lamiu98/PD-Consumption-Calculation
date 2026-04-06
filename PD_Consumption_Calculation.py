@@ -552,44 +552,41 @@ def generate_output_workbook(merged_data: pd.DataFrame, style_name: str, summary
     )
 
     color_order = merged_data["Color"].dropna().astype(str).drop_duplicates().tolist()
-    combine_operation_series = combine_df["Operation Name"].fillna("").astype(str).str.strip()
     combine_plm_series = combine_df["PLM No"].fillna("").astype(str).str.strip()
-    combine_non_blank_plm_mask = combine_plm_series != ""
 
-    operation_row_indices: dict[str, list[int]] = {}
-    combine_non_blank_df = pd.DataFrame(
-        {
-            "Row Index": combine_df.index,
-            "Operation Name": combine_operation_series,
-            "PLM No": combine_plm_series,
-        }
-    )
-    combine_non_blank_df = combine_non_blank_df[combine_non_blank_plm_mask]
-    combine_non_blank_df = combine_non_blank_df.sort_values(["Operation Name", "PLM No"], kind="stable")
-
-    for _, row in combine_non_blank_df.iterrows():
-        operation_name = str(row["Operation Name"])
-        row_index = int(row["Row Index"])
-        operation_row_indices.setdefault(operation_name, []).append(row_index)
-
-    master_operation_series = master_df["Operation Name"].fillna("").astype(str).str.strip()
     master_color_series = master_df["Color"].fillna("").astype(str).str.strip()
+    master_plm_series = master_df["PLM No"].fillna("").astype(str).str.strip()
     master_col_series = master_df["Col"].fillna("").astype(str).str.strip()
+
+    # Build lookup queues by (Color, PLM No) from Master to fill color columns in Combine.
+    master_col_lookup: dict[tuple[str, str], list[str]] = {}
+    for row_index in master_df.index:
+        color_key = str(master_color_series.at[row_index]).strip()
+        plm_key = str(master_plm_series.at[row_index]).strip()
+        col_value = str(master_col_series.at[row_index]).strip()
+        if not color_key or not plm_key or not col_value:
+            continue
+        master_col_lookup.setdefault((color_key, plm_key), []).append(col_value)
 
     for color in color_order:
         if color not in combine_df.columns:
             combine_df[color] = ""
 
-        for operation_name, row_indices in operation_row_indices.items():
-            master_match_mask = (
-                (master_operation_series == operation_name)
-                & (master_color_series == color)
-                & (master_col_series != "")
-            )
-            col_values = master_col_series[master_match_mask].tolist()
+        usage_counter: dict[str, int] = {}
+        for row_index in combine_df.index:
+            plm_value = str(combine_plm_series.at[row_index]).strip()
+            if not plm_value:
+                continue
 
-            for row_index, col_value in zip(row_indices, col_values):
-                combine_df.at[row_index, color] = col_value
+            key = (str(color).strip(), plm_value)
+            col_candidates = master_col_lookup.get(key, [])
+            if not col_candidates:
+                continue
+
+            current_use = usage_counter.get(plm_value, 0)
+            if current_use < len(col_candidates):
+                combine_df.at[row_index, color] = col_candidates[current_use]
+                usage_counter[plm_value] = current_use + 1
 
     combine_df = combine_df.drop(columns=["Col"], errors="ignore")
 
