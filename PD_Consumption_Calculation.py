@@ -593,16 +593,11 @@ def generate_output_workbook(merged_data: pd.DataFrame, style_name: str, summary
 
     combine_df = combine_df.drop(columns=["Col"], errors="ignore")
 
-    combine_lookup = {
-        (normalize_key(plm_no), normalize_position_key(position_value))
-        for plm_no, position_value in zip(combine_df["PLM No"], combine_df["Position"])
-        if normalize_key(plm_no)
-    }
-    combine_plm_lookup = {
-        normalize_key(plm_no)
-        for plm_no in combine_df["PLM No"]
-        if normalize_key(plm_no)
-    }
+    # Pre-normalize Operation values for PLM Check
+    combine_operations_normalized = [
+        normalize_key(row["Operation"]) if not pd.isna(row["Operation"]) else ""
+        for _, row in combine_df.iterrows()
+    ]
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
@@ -620,16 +615,26 @@ def generate_output_workbook(merged_data: pd.DataFrame, style_name: str, summary
                 plm_check_values = ["PLM Check"]
                 for _, row in plm_output_df.iloc[1:].iterrows():
                     plm_raw = "" if pd.isna(row.iloc[plm_no_index]) else str(row.iloc[plm_no_index]).strip()
-                    plm_prefix = plm_raw[:1]
+                    position_raw = "" if pd.isna(row.iloc[plm_position_index]) else str(row.iloc[plm_position_index]).strip()
+                    
                     plm_key = normalize_key(plm_raw)
-                    position_key = normalize_position_key(row.iloc[plm_position_index])
-
-                    if plm_prefix in {"R", "S"}:
-                        is_match = bool(plm_key and (plm_key, position_key) in combine_lookup)
-                    elif plm_prefix == "P":
-                        is_match = bool(plm_key and plm_key in combine_plm_lookup)
-                    else:
-                        is_match = False
+                    position_key = normalize_position_key(position_raw)
+                    
+                    is_match = False
+                    
+                    if plm_key:
+                        if position_key:
+                            # Case 1: Check if any Operation contains both PLM No and Position
+                            is_match = any(
+                                plm_key in op and position_key in op
+                                for op in combine_operations_normalized
+                            )
+                        else:
+                            # Case 2: Check if any Operation contains PLM No (when Position is empty)
+                            is_match = any(
+                                plm_key in op
+                                for op in combine_operations_normalized
+                            )
 
                     plm_check_values.append("Yes" if is_match else "No")
 
