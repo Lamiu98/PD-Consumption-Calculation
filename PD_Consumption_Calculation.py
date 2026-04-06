@@ -646,9 +646,9 @@ def generate_output_workbook(merged_data: pd.DataFrame, style_name: str, summary
                 logs.append("PLM Check warning: Could not create PLM Check column due to missing PLM columns.")
 
             plm_output_df.to_excel(writer, index=False, header=False, sheet_name="PLM")
-            format_output_sheet(writer.book["PLM"], highlight_plm_check_header=True)
+            format_output_sheet(writer.book["PLM"], highlight_plm_check_header=True, freeze_top_row=True)
 
-        format_output_sheet(writer.book["Master"], highlight_operation_check_yes=True)
+        format_output_sheet(writer.book["Master"], highlight_operation_check_yes=True, freeze_top_row=True)
         format_output_sheet(
             writer.book["Item Calculation"],
             highlight_row_column_name="Color",
