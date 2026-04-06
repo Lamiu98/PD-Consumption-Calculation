@@ -625,10 +625,16 @@ def generate_output_workbook(merged_data: pd.DataFrame, style_name: str, summary
                     if plm_key:
                         if position_key:
                             # Case 1: Check if any Operation contains both PLM No and Position
-                            is_match = any(
-                                plm_key in op and position_key in op
-                                for op in combine_operations_normalized
-                            )
+                            matching_indices = [
+                                index
+                                for index, op in enumerate(combine_operations_normalized)
+                                if plm_key in op and position_key in op
+                            ]
+                            is_match = bool(matching_indices)
+                            if is_match and position_raw:
+                                for index in matching_indices:
+                                    if not str(combine_df.at[index, "Position"]).strip():
+                                        combine_df.at[index, "Position"] = position_raw
                         else:
                             # Case 2: Check if any Operation contains PLM No (when Position is empty)
                             is_match = any(
